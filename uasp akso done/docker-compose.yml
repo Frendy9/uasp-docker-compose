@@ -1,0 +1,80 @@
+version: '3.9'
+
+name: uas_docker_compose 
+
+services:
+  nginx:
+    image: nginx:latest
+    container_name: nginx_server_new
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx/html:/usr/share/nginx/html
+    networks:
+      - server_network
+    configs:
+      - source: nginx_config
+        target: /etc/nginx_config/nginx.conf
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+    restart: always
+
+  database:
+    image: mysql:latest
+    container_name: main_mysqldb
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: main_db
+      MYSQL_USER: user
+      MYSQL_PASSWORD: userpassword
+      MYSQL_ROOT_HOST: "%"
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - app_network
+    restart: always
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  wordpress:
+    image: wordpress:latest
+    container_name: wordpress_new_app
+    environment:
+      WORDPRESS_DB_HOST: database:3306
+      WORDPRESS_DB_NAME: main_db
+      WORDPRESS_DB_USER: user
+      WORDPRESS_DB_PASSWORD: userpassword
+    ports:
+      - "8081:80"
+    volumes:
+      - wordpress_content:/var/www/html
+    networks:
+      - app_network
+    restart: always
+    depends_on:
+      - database
+
+networks:
+  server_network:
+    driver: bridge
+  app_network:  
+    driver: bridge
+
+volumes:
+  mysql_data:  
+    driver: local
+  wordpress_content: 
+    driver: local
+
+configs:
+  nginx_config:  
+    file: ./nginx/nginx.conf
